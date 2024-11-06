@@ -52,7 +52,7 @@ The browser communicates using:
     
 *   `Uint8Array` for binary framing
     
-*   `protobufjs` for runtime protobuf parsing
+*   [`protobufjs`](https://www.npmjs.com/package/protobufjs) for runtime protobuf parsing
     
 
 The client:
@@ -159,6 +159,8 @@ Envoy terminates TLS and advertises ALPN's:
 
 Without ALPN configuration, browsers cannot negotiate HTTP/2 and connections would fail silently.
 
+> If you can't use a Proxy layer, an alternative to remove Envoy can be used with [`@emmveqz/grpc-node-web`](https://www.npmjs.com/package/@emmveqz/grpc-node-web) which can handle CORS natively. In that case, the gRPC service will also need to handle Auth and TLS, and be exposed to the internet.
+
 * * *
 
 ## 4\. Service Discovery
@@ -184,9 +186,9 @@ Envoy periodically re-resolves DNS and updates its backend pool.
 
 ## 5\. gRPC Application Services
 
-The application layer consists of one or more **Node.js gRPC services**, implemented using:
+The application layer consists of one or more **gRPC services**, implemented using:
 
-*   `@grpc/grpc-js`
+*   [`@grpc/grpc-js`](https://www.npmjs.com/package/@grpc/grpc-js) (proven in practice, but it should work in other languages)
     
 *   HTTP/2 cleartext (`h2c`)
     

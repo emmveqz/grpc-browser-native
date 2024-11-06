@@ -51,7 +51,7 @@ The browser client is implemented using:
     
 *   **`ReadableStream`** — upstream streaming
     
-*   **`protobufjs`** — runtime protobuf parsing (no codegen, no `protoc`)
+*   **[`protobufjs`](https://www.npmjs.com/package/protobufjs)** — runtime protobuf parsing (no codegen, no `protoc`)
     
 
 This allows the browser to:
@@ -141,6 +141,10 @@ The gRPC applications behind Envoy do not:
     
 *   Know anything about browsers
     
+*   Face the internet directly
+    
+
+> If you can't use a Proxy layer, an alternative to remove Envoy can be used with [`@emmveqz/grpc-node-web`](https://www.npmjs.com/package/@emmveqz/grpc-node-web) which can handle CORS natively. In that case, the gRPC service will also need to handle Auth and TLS, and be exposed to the internet.
 
 * * *
 
@@ -173,11 +177,11 @@ This is critical for real gRPC streaming.
 
 * * *
 
-## Private Application Layer: Node.js gRPC
+## Private Application Layer: gRPC Services
 
 The application services are implemented using:
 
-*   **`@grpc/grpc-js`**
+*   **[`@grpc/grpc-js`](https://www.npmjs.com/package/@grpc/grpc-js)** (proven in practice, but it should work in other languages)
     
 *   HTTP/2 cleartext (`h2c`)
     
@@ -265,10 +269,10 @@ Envoy (TLS, CORS, JWT)
         |
         | h2c
         v
-Node.js gRPC Services
+gRPC Services (running in AWS ECS)
 ```
 
-(See [`/docs/diagrams/`](/docs/diagrams/grpc-browser-native-architecture.png) for visual versions.)
+(See [/docs/diagrams/](/docs/diagrams/grpc-browser-native-architecture.png) for visual versions.)
 
 * * *
 
@@ -297,3 +301,5 @@ Node.js gRPC Services
     
 
 * * *
+
+See [/docs/architecture.md](/docs/architecture.md) for more details.

@@ -1,0 +1,173 @@
+# Configuration compliant with official Envoy image `envoyproxy/envoy:v1.31.2`
+
+static_resources:
+
+  listeners:
+  - name: listener_https
+    address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 443   # The internet faced port, also assigned to your Network Load Balancer.
+
+    filter_chains:
+    - transport_socket:
+        name: envoy.transport_sockets.tls
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+          common_tls_context:
+            alpn_protocols:
+              - h2
+              - http/1.1
+            # ------------------------------
+            # A path (and files) accessible from your container.
+            # Usually a mounted volume configured at setup-time.
+            # ------------------------------
+            tls_certificates:
+            - certificate_chain:
+                filename: /efs/envoy/tls/cert.pem
+              private_key:
+                filename: /efs/envoy/tls/privkey.pem
+
+      filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+
+        stat_prefix: ingress_http
+        codec_type: HTTP2
+
+        route_config:
+          name: grpc_routes
+          virtual_hosts:
+          - name: grpc_service
+            domains: ["*"]
+
+            cors:
+              allow_origin_string_match:
+              - safe_regex:
+                  regex: ".*"   # Set your web app's origin.
+              allow_methods: "POST, OPTIONS"
+              allow_headers: "Authorization, Accept-Encoding, Content-Type, Grpc-Accept-Encoding, Grpc-Encoding, Te, X-Grpc-Accept-Encoding, X-Grpc-Encoding, X-Te"
+              expose_headers: "grpc-status, grpc-message"
+              max_age: "1728000"
+              allow_credentials: false
+
+            routes:
+            # Accept "GET" method, just so the endpoint can be accessed from a browser page.
+            # (For dev purposes. Comment it out for production)
+            - match:
+                prefix: "/"
+                headers:
+                - name: ":method"
+                    exact_match: "GET"
+              direct_response:
+                status: 200
+                body:
+                  inline_string: "ok"
+
+            # Preflight handled by Envoy
+            - match:
+                prefix: "/"
+                headers:
+                - name: ":method"
+                    exact_match: "OPTIONS"
+              direct_response:
+                status: 204
+              response_headers_to_add:
+              - header:
+                  key: "Access-Control-Allow-Origin"
+                  value: "*"   # Set your web app's origin.
+
+            # Real gRPC traffic
+            - match:
+                prefix: "/"
+              route:
+                cluster: grpc_backend
+                timeout: 0s   # REQUIRED for streaming
+
+        http_filters:
+        # ------------------------------
+        # CORS
+        # ------------------------------
+        - name: envoy.filters.http.cors
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.cors.v3.Cors
+
+        # ------------------------------
+        # JWT (Comment this http_filter out if you are not using JWT)
+        # ------------------------------
+        - name: envoy.filters.http.jwt_authn
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.jwt_authn.v3.JwtAuthentication
+            providers:
+              jwt_provider:
+                issuer: "https://your-issuer.example.com/"
+                audiences:
+                  - "your-audience"
+                remote_jwks:
+                  http_uri:
+                    uri: "https://your-issuer.example.com/.well-known/jwks.json"
+                    cluster: jwks_cluster
+                    timeout: 5s
+            rules:
+            - match:
+                prefix: "/"
+              requires:
+                provider_name: "jwt_provider"
+
+        # ------------------------------
+        # ROUTES
+        # ------------------------------
+        - name: envoy.filters.http.router
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+
+  clusters:
+
+  # ------------------------------
+  # gRPC backend (h2c)
+  # ------------------------------
+  - name: grpc_backend
+    connect_timeout: 1s
+    type: logical_dns
+    lb_policy: round_robin
+
+    http2_protocol_options:
+      max_concurrent_streams: 48
+
+    load_assignment:
+      cluster_name: grpc_backend
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: grpc-service.grpc-namespace   # DNS name taken from Cloud Map.
+                port_value: 8001   # The port you assigned to your gRPC service (internally).
+
+    health_checks:
+    - timeout: 2s
+      interval: 5s
+      unhealthy_threshold: 2
+      healthy_threshold: 2
+      grpc_health_check:
+        service_name: ""
+
+  # ------------------------------
+  # JWKS fetch (Comment this cluster out if you are not using JWT)
+  # ------------------------------
+  - name: jwks_cluster
+    type: LOGICAL_DNS
+    connect_timeout: 3s
+    load_assignment:
+      cluster_name: jwks_cluster
+      endpoints:
+        - lb_endpoints:
+          - endpoint:
+              address:
+                socket_address:
+                  address: your-issuer.example.com
+                  port_value: 443
+    tls_context:
+      sni: your-issuer.example.com
