@@ -47,34 +47,37 @@ The browser client is implemented using:
 
 *   **`fetch()`** — native HTTP/2 support
     
-*   **`Uint8Array`** — raw binary framing
+*   **`Uint8Array`** — raw gRPC binary framing
     
-*   **`ReadableStream`** — upstream streaming
+*   **`ReadableStream`** — streaming in both directions: a stream *as* the request body, and the
+    response read as it arrives
     
-*   **[`protobufjs`](https://www.npmjs.com/package/protobufjs)** — runtime protobuf parsing (no codegen, no `protoc`)
+*   **[`protobufjs`](https://www.npmjs.com/package/protobufjs)** — protobuf in pure JavaScript, so
+    no `protoc` and no native toolchain
     
 
 This allows the browser to:
 
-*   Encode/decode protobuf messages dynamically
+*   Encode and decode protobuf messages
     
 *   Stream data to the server
     
 *   Receive streaming responses
     
-*   Preserve gRPC framing and semantics
+*   Preserve gRPC framing and semantics — `Content-Type: application/grpc`, unchanged end to end
     
 
 ### Why `protobufjs` instead of `protoc`?
 
-*   No build-time code generation
+*   **No Native Binary Toolchains:** Eliminates the need to install or maintain OS-dependent `protoc` compiler binaries or custom plug-ins in your local workspace or CI/CD pipelines. The whole pipeline stays inside npm
     
-*   No language-specific bindings
-    
-*   Protobuf becomes a **data schema**, not a compiled artifact
-    
+*   **No per-language plugins** — nothing like `protoc-gen-*` to install, match versions with, or
+    reproduce on a build machine
 
-The result is a **pure-JS gRPC client**, suitable for browsers.
+*   **Code generation is one npm script** — `gen-web-client-protos` emits the client from your
+    `.proto` files, like any other build step
+
+The result is a **pure-JS gRPC client**, suitable for browsers — and, unchanged, for Node 20+.
 
 Reference implementation:  
 **[`@emmveqz/grpc-web-native`](https://www.npmjs.com/package/@emmveqz/grpc-web-native)**

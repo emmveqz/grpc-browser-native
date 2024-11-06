@@ -48,20 +48,24 @@ The browser communicates using:
 
 *   `fetch()` for HTTP/2 transport
     
-*   `ReadableStream` for request streaming
+*   `ReadableStream` streaming in both directions: a stream *as* the request body, and the
+    response read as it arrives
     
-*   `Uint8Array` for binary framing
+*   `Uint8Array` raw gRPC binary framing
     
-*   [`protobufjs`](https://www.npmjs.com/package/protobufjs) for runtime protobuf parsing
+*   [`protobufjs`](https://www.npmjs.com/package/protobufjs) protobuf in pure JavaScript, so
+    no `protoc` and no native toolchain
     
 
 The client:
 
-*   Encodes protobuf messages at runtime
+*   Encode and decode protobuf messages
     
-*   Implements gRPC framing manually
+*   Streams data to the server
     
-*   Preserves streaming semantics
+*   Receives streaming responses
+    
+*   Preserve gRPC framing and semantics — `Content-Type: application/grpc`, unchanged end to end
     
 
 ### Why no `grpc-web`
@@ -72,7 +76,7 @@ The client:
     
 *   A translation proxy
     
-*   Build-time code generation
+*   OS-dependent `protoc` compiler binaries or custom plug-ins
     
 
 This architecture instead treats gRPC as:
